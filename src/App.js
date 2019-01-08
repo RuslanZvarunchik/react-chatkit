@@ -1,28 +1,95 @@
-import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from 'react'
+import Chatkit from '@pusher/chatkit-client'
+import MessageList from './components/MessageList'
+import SendMessageForm from './components/SendMessageForm'
+import RoomList from './components/RoomList'
+import NewRoomForm from './components/NewRoomForm'
 
-class App extends Component {
-  render() {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </header>
-      </div>
-    );
-  }
+import { tokenUrl, instanceLocator } from './config'
+
+class App extends React.Component{
+
+    constructor() {
+        super();
+        this.state = {
+            roomID: null,
+            messages:[],
+            joinableRooms: [],
+            joinedRooms: []
+        };
+        this.sendMessage = this.sendMessage.bind(this);
+        this.subscribeToRoom = this.subscribeToRoom.bind(this);
+        this.getJoinableRooms = this.getJoinableRooms.bind(this);
+    }
+
+    componentDidMount() {
+        const chatManager = new Chatkit.ChatManager({
+            instanceLocator,
+            userId:'JoDavis1992',
+            tokenProvider: new Chatkit.TokenProvider({
+                url: tokenUrl
+            })
+        });
+
+        chatManager.connect()
+        .then(currentUser => {
+            this.currentUser = currentUser;
+            this.getJoinableRooms();
+        })
+        .catch(err => {
+            console.log('Error on connection', err);
+        })
+    }
+
+    getJoinableRooms()
+    {
+        this.currentUser.getJoinableRooms()
+            .then(joinableRooms => {
+                this.setState({
+                    joinableRooms,
+                    joinedRooms: this.currentUser.rooms
+                })
+            })
+            .catch(err => console.log('error on joinableRooms', err));
+    }
+
+    subscribeToRoom(roomID)
+    {
+        this.setState({ messages: [] , roomID: roomID});
+        this.currentUser.subscribeToRoom({
+            roomId:roomID,
+            messageLimit:100,
+            hooks: {
+                onMessage: message => {
+                    this.setState({
+                        messages:[...this.state.messages, message]
+                    })
+                }
+            }
+        }).then(room => {
+            this.getRooms()
+        }).catch(err => console.log('error on subscribing to room: ', err))
+    }
+
+    sendMessage(text) {
+        this.currentUser.sendMessage({
+            text,
+            roomId:this.state.roomID
+        })
+    }
+    render() {
+        return (
+            <div className="app">
+                <RoomList
+                    roomID = {this.state.roomID}
+                    subscribeToRoom={this.subscribeToRoom}
+                    rooms={[...this.state.joinableRooms,...this.state.joinedRooms]}/>
+                <MessageList messages={this.state.messages}/>
+                <NewRoomForm/>
+                <SendMessageForm sendMessage={this.sendMessage}/>
+            </div>
+        );
+    }
 }
 
-export default App;
+export default App
