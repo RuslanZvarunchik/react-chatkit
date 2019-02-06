@@ -18,8 +18,9 @@ class App extends React.Component{
             joinedRooms: []
         };
         this.sendMessage = this.sendMessage.bind(this);
+        this.createRoom = this.createRoom.bind(this);
         this.subscribeToRoom = this.subscribeToRoom.bind(this);
-        this.getJoinableRooms = this.getJoinableRooms.bind(this);
+        this.getRooms = this.getRooms.bind(this);
     }
 
     componentDidMount() {
@@ -34,14 +35,14 @@ class App extends React.Component{
         chatManager.connect()
         .then(currentUser => {
             this.currentUser = currentUser;
-            this.getJoinableRooms();
+            this.getRooms();
         })
         .catch(err => {
             console.log('Error on connection', err);
         })
     }
 
-    getJoinableRooms()
+    getRooms()
     {
         this.currentUser.getJoinableRooms()
             .then(joinableRooms => {
@@ -77,6 +78,15 @@ class App extends React.Component{
             roomId:this.state.roomID
         })
     }
+
+    createRoom(name) {
+        this.currentUser.createRoom({
+            name
+        })
+            .then(room => this.subscribeToRoom(room.id))
+            .catch(err => console.log('error with createRoom: ', err))
+    }
+
     render() {
         return (
             <div className="app">
@@ -85,7 +95,7 @@ class App extends React.Component{
                     subscribeToRoom={this.subscribeToRoom}
                     rooms={[...this.state.joinableRooms,...this.state.joinedRooms]}/>
                 <MessageList messages={this.state.messages}/>
-                <NewRoomForm/>
+                <NewRoomForm createRoom={this.createRoom}/>
                 <SendMessageForm sendMessage={this.sendMessage}/>
             </div>
         );
